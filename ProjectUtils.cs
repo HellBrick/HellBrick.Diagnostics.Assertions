@@ -1,6 +1,9 @@
-﻿using System.Linq;
+﻿using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Text;
 
 namespace HellBrick.Diagnostics.Assertions
@@ -46,5 +49,49 @@ namespace HellBrick.Diagnostics.Assertions
 			Project project = solution.GetProject( projectId );
 			return project.WithParseOptions( ( (CSharpParseOptions) project.ParseOptions ).WithLanguageVersion( LanguageVersion.Latest ) );
 		}
+
+		public static Diagnostic[] GetSortedDiagnosticsFromDocuments( DiagnosticAnalyzer analyzer, Document[] documents )
+		{
+			HashSet<Project> projects = new HashSet<Project>();
+			foreach ( Document document in documents )
+			{
+				projects.Add( document.Project );
+			}
+
+			List<Diagnostic> diagnostics = new List<Diagnostic>();
+			foreach ( Project project in projects )
+			{
+				CompilationWithAnalyzers compilationWithAnalyzers = project.GetCompilationAsync().Result.WithAnalyzers( ImmutableArray.Create( analyzer ) );
+				ImmutableArray<Diagnostic> diags = compilationWithAnalyzers.GetAnalyzerDiagnosticsAsync().Result;
+				foreach ( Diagnostic diag in diags )
+				{
+					if ( diag.Location == Location.None || diag.Location.IsInMetadata )
+					{
+						diagnostics.Add( diag );
+					}
+					else
+					{
+						for ( int i = 0; i < documents.Length; i++ )
+						{
+							Document document = documents[ i ];
+							SyntaxTree tree = document.GetSyntaxTreeAsync().Result;
+							if ( tree == diag.Location.SourceTree )
+							{
+								diagnostics.Add( diag );
+							}
+						}
+					}
+				}
+			}
+
+			Diagnostic[] results = SortDiagnostics( diagnostics );
+			diagnostics.Clear();
+			return results;
+		}
+
+		private static Diagnostic[] SortDiagnostics( IEnumerable<Diagnostic> diagnostics )
+			=> diagnostics
+			.OrderBy( d => d.Location.SourceSpan.Start )
+			.ToArray();
 	}
 }
