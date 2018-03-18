@@ -28,6 +28,27 @@ namespace HellBrick.Diagnostics.Assertions
 		public AnalyzerVerifier<TAnalyzer, TCodeFix> UseCodeFix<TCodeFix>()
 			where TCodeFix : CodeFixProvider, new()
 			=> default;
+
+		public AnalyzerVerifier<TAnalyzer, string, SingleSourceCollectionFactory> Source( string source )
+			=> new AnalyzerVerifier<TAnalyzer, string, SingleSourceCollectionFactory>( source );
+	}
+
+	public readonly struct AnalyzerVerifier<TAnalyzer, TSource, TSourceCollectionFactory>
+		where TAnalyzer : DiagnosticAnalyzer, new()
+		where TSourceCollectionFactory : struct, ISourceCollectionFactory<TSource>
+	{
+		private readonly TSource _source;
+
+		public AnalyzerVerifier( TSource source ) => _source = source;
+
+		private Diagnostic[] GetDiagnostics()
+		{
+			string[] sources = default( TSourceCollectionFactory ).CreateCollection( _source );
+			Project project = ProjectUtils.CreateProject( sources );
+			Document[] documents = project.Documents.ToArray();
+			Diagnostic[] diagnostics = ProjectUtils.GetSortedDiagnosticsFromDocuments( new TAnalyzer(), documents );
+			return diagnostics;
+		}
 	}
 
 	public readonly struct AnalyzerVerifier<TAnalyzer, TCodeFix>
