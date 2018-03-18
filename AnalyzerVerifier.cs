@@ -43,6 +43,13 @@ namespace HellBrick.Diagnostics.Assertions
 
 		public void ShouldHaveNoDiagnostics() => Assert.Empty( GetDiagnostics() );
 
+		public void ShouldHaveDiagnostics( Action<Diagnostic[]> asserter )
+		{
+			Diagnostic[] diagnostics = GetDiagnostics();
+			Assert.NotEmpty( diagnostics );
+			asserter( diagnostics );
+		}
+
 		private Diagnostic[] GetDiagnostics()
 		{
 			string[] sources = default( TSourceCollectionFactory ).CreateCollection( _source );
