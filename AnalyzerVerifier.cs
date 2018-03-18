@@ -41,6 +41,8 @@ namespace HellBrick.Diagnostics.Assertions
 
 		public AnalyzerVerifier( TSource source ) => _source = source;
 
+		public void ShouldHaveNoDiagnostics() => Assert.Empty( GetDiagnostics() );
+
 		private Diagnostic[] GetDiagnostics()
 		{
 			string[] sources = default( TSourceCollectionFactory ).CreateCollection( _source );
