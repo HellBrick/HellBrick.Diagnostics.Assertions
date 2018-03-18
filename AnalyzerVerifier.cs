@@ -78,8 +78,8 @@ namespace HellBrick.Diagnostics.Assertions
 			return this;
 		}
 
-		public void VerifyNoFix( string[] sources ) => VerifyCSharpFix( sources, sources, codeFixIndex: null );
-		public void VerifyCSharpFix( string[] sources, string[] fixedSources, int? codeFixIndex )
+		private void VerifyNoFix( string[] sources ) => VerifyCSharpFix( sources, sources, codeFixIndex: null );
+		private void VerifyCSharpFix( string[] sources, string[] fixedSources, int? codeFixIndex )
 			=> VerifyFix( new TAnalyzer(), new TCodeFix(), sources, fixedSources, codeFixIndex );
 
 		/// <summary>
