@@ -1,9 +1,11 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Diagnostics;
+using Microsoft.CodeAnalysis.Options;
 using Microsoft.CodeAnalysis.Text;
 
 namespace HellBrick.Diagnostics.Assertions
@@ -20,15 +22,16 @@ namespace HellBrick.Diagnostics.Assertions
 		private static string _testProjectName = "TestProject";
 		private static string _cSharpDefaultFilePath = _defaultFilePathPrefix + 0 + "." + _cSharpDefaultFileExt;
 
-		public static Project CreateProject( string[] sources )
+		public static Project CreateProject( string[] sources, Func<OptionSet, OptionSet> optionConfigurator = null )
 		{
+			optionConfigurator = optionConfigurator ?? ( o => o.WithProperFormatting() );
 			string fileNamePrefix = _defaultFilePathPrefix;
 			string fileExt = _cSharpDefaultFileExt;
 
 			ProjectId projectId = ProjectId.CreateNewId( debugName: _testProjectName );
 
 			AdhocWorkspace workspace = new AdhocWorkspace();
-			workspace.Options = workspace.Options.WithProperFormatting();
+			workspace.Options = optionConfigurator( workspace.Options );
 
 			Solution solution = workspace
 				.CurrentSolution
