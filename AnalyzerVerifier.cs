@@ -9,6 +9,7 @@ using Microsoft.CodeAnalysis.CodeFixes;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Formatting;
+using Microsoft.CodeAnalysis.Options;
 using Microsoft.CodeAnalysis.Simplification;
 using Microsoft.CodeAnalysis.Text;
 using Xunit;
@@ -64,11 +65,18 @@ namespace HellBrick.Diagnostics.Assertions
 		where TAnalyzer : DiagnosticAnalyzer, new()
 		where TCodeFix : CodeFixProvider, new()
 	{
+		private readonly Func<OptionSet, OptionSet> _optionConfigurator;
+
+		public AnalyzerVerifier( Func<OptionSet, OptionSet> optionConfigurator ) => _optionConfigurator = optionConfigurator;
+
+		public AnalyzerVerifier<TAnalyzer, TCodeFix> WithOptions( Func<OptionSet, OptionSet> optionConfigurator )
+			=> new AnalyzerVerifier<TAnalyzer, TCodeFix>( optionConfigurator );
+
 		public AnalyzerVerifier<TAnalyzer, TCodeFix, string, SingleSourceCollectionFactory> Source( string source )
-			=> new AnalyzerVerifier<TAnalyzer, TCodeFix, string, SingleSourceCollectionFactory>( source );
+			=> new AnalyzerVerifier<TAnalyzer, TCodeFix, string, SingleSourceCollectionFactory>( source, _optionConfigurator );
 
 		public AnalyzerVerifier<TAnalyzer, TCodeFix, string[], MultiSourceCollectionFactory> Sources( params string[] sources )
-			=> new AnalyzerVerifier<TAnalyzer, TCodeFix, string[], MultiSourceCollectionFactory>( sources );
+			=> new AnalyzerVerifier<TAnalyzer, TCodeFix, string[], MultiSourceCollectionFactory>( sources, _optionConfigurator );
 	}
 
 	public readonly struct AnalyzerVerifier<TAnalyzer, TCodeFix, TSource, TSourceCollectionFactory>
@@ -76,9 +84,14 @@ namespace HellBrick.Diagnostics.Assertions
 		where TCodeFix : CodeFixProvider, new()
 		where TSourceCollectionFactory : struct, ISourceCollectionFactory<TSource>
 	{
+		private readonly Func<OptionSet, OptionSet> _optionConfigurator;
 		private readonly TSource _sources;
 
-		public AnalyzerVerifier( TSource sources ) => _sources = sources;
+		public AnalyzerVerifier( TSource sources, Func<OptionSet, OptionSet> optionConfigurator )
+		{
+			_sources = sources;
+			_optionConfigurator = optionConfigurator;
+		}
 
 		public void ShouldHaveNoDiagnostics() => VerifyNoFix( default( TSourceCollectionFactory ).CreateCollection( _sources ) );
 
@@ -105,7 +118,7 @@ namespace HellBrick.Diagnostics.Assertions
 
 		private void VerifyFix( DiagnosticAnalyzer analyzer, CodeFixProvider codeFixProvider, string[] oldSources, string[] newSources, int? codeFixIndex )
 		{
-			Project project = ProjectUtils.CreateProject( oldSources );
+			Project project = ProjectUtils.CreateProject( oldSources, _optionConfigurator );
 			Document[] documents = project.Documents.ToArray();
 			Diagnostic[] analyzerDiagnostics = GetAnalyzerDiagnosticsTargetedByCodeFixProvider( documents );
 			for ( int documentIndex = 0; documentIndex < documents.Length; documentIndex++ )

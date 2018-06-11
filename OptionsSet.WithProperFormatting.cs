@@ -5,7 +5,7 @@ using Microsoft.CodeAnalysis.Options;
 
 namespace HellBrick.Diagnostics.Assertions
 {
-	internal static class ProperFormattingOptions
+	public static class ProperFormattingOptions
 	{
 		public static OptionSet WithProperFormatting( this OptionSet optionSet )
 			=> optionSet
