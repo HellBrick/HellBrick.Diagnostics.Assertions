@@ -20,7 +20,6 @@ namespace HellBrick.Diagnostics.Assertions
 		private static string _defaultFilePathPrefix = "Test";
 		private static string _cSharpDefaultFileExt = "cs";
 		private static string _testProjectName = "TestProject";
-		private static string _cSharpDefaultFilePath = _defaultFilePathPrefix + 0 + "." + _cSharpDefaultFileExt;
 
 		public static Project CreateProject( string[] sources, Func<OptionSet, OptionSet> optionConfigurator = null )
 		{
