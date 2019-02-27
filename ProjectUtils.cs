@@ -17,9 +17,9 @@ namespace HellBrick.Diagnostics.Assertions
 		private static readonly MetadataReference _cSharpSymbolsReference = MetadataReference.CreateFromFile( typeof( CSharpCompilation ).Assembly.Location );
 		private static readonly MetadataReference _codeAnalysisReference = MetadataReference.CreateFromFile( typeof( Compilation ).Assembly.Location );
 
-		private static string _defaultFilePathPrefix = "Test";
-		private static string _cSharpDefaultFileExt = "cs";
-		private static string _testProjectName = "TestProject";
+		private static readonly string _defaultFilePathPrefix = "Test";
+		private static readonly string _cSharpDefaultFileExt = "cs";
+		private static readonly string _testProjectName = "TestProject";
 
 		public static Project CreateProject( string[] sources, Func<OptionSet, OptionSet> optionConfigurator = null )
 		{
