@@ -23,6 +23,7 @@ namespace HellBrick.Diagnostics.Assertions
 			=> default;
 	}
 
+#pragma warning disable HBStructEquatabilityMethodsMissing // Structs should provide equatability methods 
 	public readonly struct AnalyzerVerifier<TAnalyzer>
 		where TAnalyzer : DiagnosticAnalyzer, new()
 	{
@@ -223,4 +224,5 @@ namespace HellBrick.Diagnostics.Assertions
 			return root.GetText().ToString();
 		}
 	}
+#pragma warning restore HBStructEquatabilityMethodsMissing // Structs should provide equatability methods 
 }
