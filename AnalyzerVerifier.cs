@@ -116,8 +116,7 @@ namespace HellBrick.Diagnostics.Assertions
 
 		private void VerifyNoFix( string[] sources )
 		{
-			Project project = ProjectUtils.CreateProject( sources, _optionConfigurator );
-			Document[] documents = project.Documents.ToArray();
+			Document[] documents = GetDocuments( sources );
 			Diagnostic[] analyzerDiagnostics = GetAnalyzerDiagnosticsTargetedByCodeFixProvider( new TAnalyzer(), new TCodeFix(), documents );
 
 			if ( analyzerDiagnostics.Length > 0 )
