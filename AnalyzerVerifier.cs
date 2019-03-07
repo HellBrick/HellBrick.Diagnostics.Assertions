@@ -220,9 +220,9 @@ $@"### {diagnostic.Id}: {diagnostic.GetMessage()} @ {diagnostic.Location.ToStrin
 			}
 		}
 
-		private Document[] GetDocuments( string[] oldSources )
+		private Document[] GetDocuments( string[] sources )
 		{
-			Project project = ProjectUtils.CreateProject( oldSources, _optionConfigurator );
+			Project project = ProjectUtils.CreateProject( sources, _optionConfigurator );
 			Document[] documents = project.Documents.ToArray();
 			return documents;
 		}
