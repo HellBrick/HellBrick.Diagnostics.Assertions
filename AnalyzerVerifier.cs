@@ -120,7 +120,7 @@ namespace HellBrick.Diagnostics.Assertions
 		{
 			Project project = ProjectUtils.CreateProject( oldSources, _optionConfigurator );
 			Document[] documents = project.Documents.ToArray();
-			Diagnostic[] analyzerDiagnostics = GetAnalyzerDiagnosticsTargetedByCodeFixProvider( documents );
+			Diagnostic[] analyzerDiagnostics = GetAnalyzerDiagnosticsTargetedByCodeFixProvider( analyzer, codeFixProvider, documents );
 			for ( int documentIndex = 0; documentIndex < documents.Length; documentIndex++ )
 			{
 				Document document = documents[ documentIndex ];
@@ -149,7 +149,7 @@ namespace HellBrick.Diagnostics.Assertions
 					}
 
 					document = ApplyFix( document, actions.ElementAt( 0 ) );
-					analyzerDiagnostics = GetAnalyzerDiagnosticsTargetedByCodeFixProvider( document );
+					analyzerDiagnostics = GetAnalyzerDiagnosticsTargetedByCodeFixProvider( analyzer, codeFixProvider, document );
 
 					IEnumerable<Diagnostic> newCompilerDiagnostics = GetNewDiagnostics( compilerDiagnostics, GetCompilerDiagnostics( document ) );
 
@@ -177,12 +177,17 @@ namespace HellBrick.Diagnostics.Assertions
 				string actual = GetStringFromDocument( document );
 				Assert.Equal( newSource, actual );
 			}
-
-			Diagnostic[] GetAnalyzerDiagnosticsTargetedByCodeFixProvider( params Document[] documentsToAnalyze )
-				=> ProjectUtils.GetSortedDiagnosticsFromDocuments( analyzer, documentsToAnalyze )
-				.Where( d => codeFixProvider.FixableDiagnosticIds.Contains( d.Id ) )
-				.ToArray();
 		}
+
+		private static Diagnostic[] GetAnalyzerDiagnosticsTargetedByCodeFixProvider
+		(
+			DiagnosticAnalyzer analyzer,
+			CodeFixProvider codeFixProvider,
+			params Document[] documentsToAnalyze
+		)
+			=> ProjectUtils.GetSortedDiagnosticsFromDocuments( analyzer, documentsToAnalyze )
+			.Where( d => codeFixProvider.FixableDiagnosticIds.Contains( d.Id ) )
+			.ToArray();
 
 		private static IEnumerable<Diagnostic> GetCompilerDiagnostics( Document document ) => document.GetSemanticModelAsync().Result.GetDiagnostics();
 
