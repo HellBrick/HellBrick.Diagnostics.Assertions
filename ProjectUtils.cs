@@ -49,7 +49,8 @@ namespace HellBrick.Diagnostics.Assertions
 				count++;
 			}
 			Project project = solution.GetProject( projectId );
-			return project.WithParseOptions( ( (CSharpParseOptions) project.ParseOptions ).WithLanguageVersion( LanguageVersion.Latest ) );
+			CSharpParseOptions defaultParseOptions = ( (CSharpParseOptions) project.ParseOptions ).WithLanguageVersion( LanguageVersion.Latest );
+			return project.WithParseOptions( defaultParseOptions );
 		}
 
 		public static Diagnostic[] GetSortedDiagnosticsFromDocuments( DiagnosticAnalyzer analyzer, Document[] documents )
