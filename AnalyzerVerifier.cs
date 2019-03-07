@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CodeActions;
@@ -112,7 +114,47 @@ namespace HellBrick.Diagnostics.Assertions
 			return this;
 		}
 
-		private void VerifyNoFix( string[] sources ) => VerifyCSharpFix( sources, sources, codeFixIndex: null );
+		private void VerifyNoFix( string[] sources )
+		{
+			Project project = ProjectUtils.CreateProject( sources, _optionConfigurator );
+			Document[] documents = project.Documents.ToArray();
+			Diagnostic[] analyzerDiagnostics = GetAnalyzerDiagnosticsTargetedByCodeFixProvider( new TAnalyzer(), new TCodeFix(), documents );
+
+			if ( analyzerDiagnostics.Length > 0 )
+			{
+				string assertMessage = String.Join
+				(
+					Environment.NewLine + Environment.NewLine,
+					analyzerDiagnostics.Select( d => GetUnexpectedDiagnosticAssertMessage( d ) )
+				);
+
+				Assert.True( false, assertMessage );
+			}
+
+			string GetUnexpectedDiagnosticAssertMessage( Diagnostic diagnostic )
+				=>
+$@"### {diagnostic.Id}: {diagnostic.GetMessage()} @ {diagnostic.Location.ToString()}
+
+{GetSourceWithLocationHighlighted( diagnostic.Location )}
+";
+
+			string GetSourceWithLocationHighlighted( Location location )
+			{
+				const string startMarker = ">>>";
+				const string endMarker = "<<<";
+
+				SourceText originalSourceText = location.SourceTree.GetText();
+
+				StringWriter writer = new StringWriter( new StringBuilder( originalSourceText.Length + startMarker.Length + endMarker.Length ) );
+				writer.Write( originalSourceText.GetSubText( TextSpan.FromBounds( 0, location.SourceSpan.Start ) ).ToString() );
+				writer.Write( startMarker );
+				writer.Write( originalSourceText.GetSubText( location.SourceSpan ).ToString() );
+				writer.Write( endMarker );
+				writer.Write( originalSourceText.GetSubText( location.SourceSpan.End ).ToString() );
+				return writer.ToString();
+			}
+		}
+
 		private void VerifyCSharpFix( string[] sources, string[] fixedSources, int? codeFixIndex )
 			=> VerifyFix( new TAnalyzer(), new TCodeFix(), sources, fixedSources, codeFixIndex );
 
