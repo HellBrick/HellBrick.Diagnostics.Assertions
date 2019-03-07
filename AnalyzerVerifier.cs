@@ -8,6 +8,7 @@ using System.Threading;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.CodeFixes;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Formatting;
 using Microsoft.CodeAnalysis.Options;
@@ -68,17 +69,25 @@ namespace HellBrick.Diagnostics.Assertions
 		where TCodeFix : CodeFixProvider, new()
 	{
 		private readonly Func<OptionSet, OptionSet> _optionConfigurator;
+		private readonly Func<CSharpParseOptions, CSharpParseOptions> _parseOptionsConfigurator;
 
-		public AnalyzerVerifier( Func<OptionSet, OptionSet> optionConfigurator ) => _optionConfigurator = optionConfigurator;
+		public AnalyzerVerifier( Func<OptionSet, OptionSet> optionConfigurator, Func<CSharpParseOptions, CSharpParseOptions> parseOptionsConfigurator )
+		{
+			_optionConfigurator = optionConfigurator;
+			_parseOptionsConfigurator = parseOptionsConfigurator;
+		}
 
 		public AnalyzerVerifier<TAnalyzer, TCodeFix> WithOptions( Func<OptionSet, OptionSet> optionConfigurator )
-			=> new AnalyzerVerifier<TAnalyzer, TCodeFix>( optionConfigurator );
+			=> new AnalyzerVerifier<TAnalyzer, TCodeFix>( optionConfigurator, _parseOptionsConfigurator );
+
+		public AnalyzerVerifier<TAnalyzer, TCodeFix> WithParseOptions( Func<CSharpParseOptions, CSharpParseOptions> parseOptionsConfigurator )
+			=> new AnalyzerVerifier<TAnalyzer, TCodeFix>( _optionConfigurator, parseOptionsConfigurator );
 
 		public AnalyzerVerifier<TAnalyzer, TCodeFix, string, SingleSourceCollectionFactory> Source( string source )
-			=> new AnalyzerVerifier<TAnalyzer, TCodeFix, string, SingleSourceCollectionFactory>( source, _optionConfigurator );
+			=> new AnalyzerVerifier<TAnalyzer, TCodeFix, string, SingleSourceCollectionFactory>( source, _optionConfigurator, _parseOptionsConfigurator );
 
 		public AnalyzerVerifier<TAnalyzer, TCodeFix, string[], MultiSourceCollectionFactory> Sources( params string[] sources )
-			=> new AnalyzerVerifier<TAnalyzer, TCodeFix, string[], MultiSourceCollectionFactory>( sources, _optionConfigurator );
+			=> new AnalyzerVerifier<TAnalyzer, TCodeFix, string[], MultiSourceCollectionFactory>( sources, _optionConfigurator, _parseOptionsConfigurator );
 	}
 
 	public readonly struct AnalyzerVerifier<TAnalyzer, TCodeFix, TSource, TSourceCollectionFactory>
@@ -87,12 +96,14 @@ namespace HellBrick.Diagnostics.Assertions
 		where TSourceCollectionFactory : struct, ISourceCollectionFactory<TSource>
 	{
 		private readonly Func<OptionSet, OptionSet> _optionConfigurator;
+		private readonly Func<CSharpParseOptions, CSharpParseOptions> _parseOptionsConfigurator;
 		private readonly TSource _sources;
 
-		public AnalyzerVerifier( TSource sources, Func<OptionSet, OptionSet> optionConfigurator )
+		public AnalyzerVerifier( TSource sources, Func<OptionSet, OptionSet> optionConfigurator, Func<CSharpParseOptions, CSharpParseOptions> parseOptionsConfigurator )
 		{
 			_sources = sources;
 			_optionConfigurator = optionConfigurator;
+			_parseOptionsConfigurator = parseOptionsConfigurator;
 		}
 
 		public void ShouldHaveNoDiagnostics() => VerifyNoFix( default( TSourceCollectionFactory ).CreateCollection( _sources ) );
@@ -221,7 +232,7 @@ $@"### {diagnostic.Id}: {diagnostic.GetMessage()} @ {diagnostic.Location.ToStrin
 
 		private Document[] GetDocuments( string[] sources )
 		{
-			Project project = ProjectUtils.CreateProject( sources, _optionConfigurator );
+			Project project = ProjectUtils.CreateProject( sources, _optionConfigurator, _parseOptionsConfigurator );
 			Document[] documents = project.Documents.ToArray();
 			return documents;
 		}
