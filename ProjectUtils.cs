@@ -21,9 +21,10 @@ namespace HellBrick.Diagnostics.Assertions
 		private static readonly string _cSharpDefaultFileExt = "cs";
 		private static readonly string _testProjectName = "TestProject";
 
-		public static Project CreateProject( string[] sources, Func<OptionSet, OptionSet> optionConfigurator = null )
+		public static Project CreateProject( string[] sources, Func<OptionSet, OptionSet> optionConfigurator = null, Func<CSharpParseOptions, CSharpParseOptions> parseOptionsConfigurator = null )
 		{
 			optionConfigurator = optionConfigurator ?? ( o => o.WithProperFormatting() );
+			parseOptionsConfigurator = parseOptionsConfigurator ?? ( o => o );
 			string fileNamePrefix = _defaultFilePathPrefix;
 			string fileExt = _cSharpDefaultFileExt;
 
@@ -49,7 +50,9 @@ namespace HellBrick.Diagnostics.Assertions
 				count++;
 			}
 			Project project = solution.GetProject( projectId );
-			return project.WithParseOptions( ( (CSharpParseOptions) project.ParseOptions ).WithLanguageVersion( LanguageVersion.Latest ) );
+			CSharpParseOptions defaultParseOptions = ( (CSharpParseOptions) project.ParseOptions ).WithLanguageVersion( LanguageVersion.Latest );
+			CSharpParseOptions parseOptions = parseOptionsConfigurator( defaultParseOptions );
+			return project.WithParseOptions( parseOptions );
 		}
 
 		public static Diagnostic[] GetSortedDiagnosticsFromDocuments( DiagnosticAnalyzer analyzer, Document[] documents )
