@@ -118,8 +118,7 @@ namespace HellBrick.Diagnostics.Assertions
 
 		private void VerifyFix( DiagnosticAnalyzer analyzer, CodeFixProvider codeFixProvider, string[] oldSources, string[] newSources, int? codeFixIndex )
 		{
-			Project project = ProjectUtils.CreateProject( oldSources, _optionConfigurator );
-			Document[] documents = project.Documents.ToArray();
+			Document[] documents = GetDocuments( oldSources );
 			Diagnostic[] analyzerDiagnostics = GetAnalyzerDiagnosticsTargetedByCodeFixProvider( analyzer, codeFixProvider, documents );
 			for ( int documentIndex = 0; documentIndex < documents.Length; documentIndex++ )
 			{
@@ -177,6 +176,13 @@ namespace HellBrick.Diagnostics.Assertions
 				string actual = GetStringFromDocument( document );
 				Assert.Equal( newSource, actual );
 			}
+		}
+
+		private Document[] GetDocuments( string[] oldSources )
+		{
+			Project project = ProjectUtils.CreateProject( oldSources, _optionConfigurator );
+			Document[] documents = project.Documents.ToArray();
+			return documents;
 		}
 
 		private static Diagnostic[] GetAnalyzerDiagnosticsTargetedByCodeFixProvider
