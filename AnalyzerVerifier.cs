@@ -170,63 +170,44 @@ $@"### {diagnostic.Id}: {diagnostic.GetMessage()} @ {diagnostic.Location.ToStrin
 
 		private void VerifyFix( DiagnosticAnalyzer analyzer, CodeFixProvider codeFixProvider, string[] oldSources, string[] newSources, int? codeFixIndex )
 		{
-			Document[] documents = GetDocuments( oldSources );
-			Diagnostic[] analyzerDiagnostics = GetAnalyzerDiagnosticsTargetedByCodeFixProvider( analyzer, codeFixProvider, documents );
-			for ( int documentIndex = 0; documentIndex < documents.Length; documentIndex++ )
+			Solution solution = CreateProject( oldSources ).Solution;
+			while ( true )
 			{
-				Document document = documents[ documentIndex ];
-				string newSource = newSources[ documentIndex ];
+				Document[] documents = solution.Projects.SelectMany( p => p.Documents ).ToArray();
 
-				IEnumerable<Diagnostic> compilerDiagnostics = GetCompilerDiagnostics( document );
-				int attempts = analyzerDiagnostics.Length;
+				Diagnostic[] diagnostics = GetAnalyzerDiagnosticsTargetedByCodeFixProvider( analyzer, codeFixProvider, documents );
+				Diagnostic firstDiagnostic = diagnostics.FirstOrDefault();
 
-				for ( int i = 0; i < attempts; ++i )
-				{
-					List<CodeAction> actions = new List<CodeAction>();
-					TextSpan span = analyzerDiagnostics[ 0 ].Location.SourceSpan;
-					ImmutableArray<Diagnostic> spanDiagnostics = ImmutableArray.Create( analyzerDiagnostics.Where( d => d.Location.SourceSpan == span ).ToArray() );
-					CodeFixContext context = new CodeFixContext( document, span, spanDiagnostics, ( a, d ) => actions.Add( a ), CancellationToken.None );
-					codeFixProvider.RegisterCodeFixesAsync( context ).Wait();
+				if ( firstDiagnostic is null )
+					break;
 
-					if ( !actions.Any() )
-					{
-						break;
-					}
+				List<CodeAction> actions = new();
+				Document document = solution.GetDocument( firstDiagnostic.Location.SourceTree );
+				TextSpan span = firstDiagnostic.Location.SourceSpan;
+				ImmutableArray<Diagnostic> spanDiagnostics = ImmutableArray.Create( firstDiagnostic );
+				CodeFixContext context = new( document, span, spanDiagnostics, ( a, d ) => actions.Add( a ), CancellationToken.None );
+				codeFixProvider.RegisterCodeFixesAsync( context ).Wait();
 
-					if ( codeFixIndex != null )
-					{
-						document = ApplyFix( document, actions.ElementAt( (int) codeFixIndex ) );
-						break;
-					}
+				if ( !actions.Any() )
+					break;
 
-					document = ApplyFix( document, actions.ElementAt( 0 ) );
-					analyzerDiagnostics = GetAnalyzerDiagnosticsTargetedByCodeFixProvider( analyzer, codeFixProvider, document );
+				CodeAction action = codeFixIndex is null ? actions[ 0 ] : actions[ (int) codeFixIndex ];
 
-					IEnumerable<Diagnostic> newCompilerDiagnostics = GetNewDiagnostics( compilerDiagnostics, GetCompilerDiagnostics( document ) );
+				ImmutableArray<CodeActionOperation> operations = action.GetOperationsAsync( CancellationToken.None ).Result;
+				Solution changedSolution = operations.OfType<ApplyChangesOperation>().Single().ChangedSolution;
+				if ( changedSolution == solution )
+					break;
 
-					//check if applying the code fix introduced any new compiler diagnostics
-					if ( newCompilerDiagnostics.Any() )
-					{
-						// Format and get the compiler diagnostics again so that the locations make sense in the output
-						document = document.WithSyntaxRoot( Formatter.Format( document.GetSyntaxRootAsync().Result, Formatter.Annotation, document.Project.Solution.Workspace ) );
-						newCompilerDiagnostics = GetNewDiagnostics( compilerDiagnostics, GetCompilerDiagnostics( document ) );
+				solution = changedSolution;
+			}
 
-						Assert.True( false,
-							System.String.Format( "Fix introduced new compiler diagnostics:\r\n{0}\r\n\r\nNew document:\r\n{1}\r\n",
-								System.String.Join( "\r\n", newCompilerDiagnostics.Select( d => d.ToString() ) ),
-								document.GetSyntaxRootAsync().Result.ToFullString() ) );
-					}
+			Document[] fixedSources = solution.Projects.SelectMany( p => p.Documents ).ToArray();
 
-					//check if there are analyzer diagnostics left after the code fix
-					if ( !analyzerDiagnostics.Any() )
-					{
-						break;
-					}
-				}
-
-				//after applying all of the code fixes, compare the resulting string to the inputted one
-				string actual = GetStringFromDocument( document );
-				Assert.Equal( newSource, actual );
+			for ( int i = 0; i < fixedSources.Length; i++ )
+			{
+				string fixedSource = GetStringFromDocument( fixedSources[ i ] );
+				string expectedSource = newSources[ i ];
+				Assert.Equal( expectedSource, fixedSource );
 			}
 		}
 
@@ -249,37 +230,6 @@ $@"### {diagnostic.Id}: {diagnostic.GetMessage()} @ {diagnostic.Location.ToStrin
 			=> ProjectUtils.GetSortedDiagnosticsFromDocuments( analyzer, documentsToAnalyze )
 			.Where( d => codeFixProvider.FixableDiagnosticIds.Contains( d.Id ) )
 			.ToArray();
-
-		private static IEnumerable<Diagnostic> GetCompilerDiagnostics( Document document ) => document.GetSemanticModelAsync().Result.GetDiagnostics();
-
-		private static Document ApplyFix( Document document, CodeAction codeAction )
-		{
-			ImmutableArray<CodeActionOperation> operations = codeAction.GetOperationsAsync( CancellationToken.None ).Result;
-			Solution solution = operations.OfType<ApplyChangesOperation>().Single().ChangedSolution;
-			return solution.GetDocument( document.Id );
-		}
-
-		private static IEnumerable<Diagnostic> GetNewDiagnostics( IEnumerable<Diagnostic> diagnostics, IEnumerable<Diagnostic> newDiagnostics )
-		{
-			Diagnostic[] oldArray = diagnostics.OrderBy( d => d.Location.SourceSpan.Start ).ToArray();
-			Diagnostic[] newArray = newDiagnostics.OrderBy( d => d.Location.SourceSpan.Start ).ToArray();
-
-			int oldIndex = 0;
-			int newIndex = 0;
-
-			while ( newIndex < newArray.Length )
-			{
-				if ( oldIndex < oldArray.Length && oldArray[ oldIndex ].Id == newArray[ newIndex ].Id )
-				{
-					++oldIndex;
-					++newIndex;
-				}
-				else
-				{
-					yield return newArray[ newIndex++ ];
-				}
-			}
-		}
 
 		private static string GetStringFromDocument( Document document )
 		{
